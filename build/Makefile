@@ -36,17 +36,23 @@ ifeq ($(NOCACHE),1)
   DOCKER_BUILD_FLAGS += --no-cache
 endif
 
+ifeq ($(NOMOUNT),1)
+  DOCKER_MOUNT = nomount
+else
+  DOCKER_MOUNT = mount
+endif
+
 # パッケージ名からルールを自動生成する
 define generateDockerRules
 
 .PHONY: $(1)
 $(1): $(1).prepare
-	docker run -it --rm -v `pwd`/..:/root/momo momo/$(1):m$$(WEBRTC_VERSION)-$$(WEBRTC_COMMIT_SHORT) /bin/bash -c 'cd /root/momo && make MOMO_CFLAGS="-O2" PACKAGE_NAME=$(1) momo'
+	../script/docker_run.sh `pwd` `pwd`/.. $(DOCKER_MOUNT) $(1) momo/$(1):m$$(WEBRTC_VERSION)-$$(WEBRTC_COMMIT_SHORT) build
 
 .PHONY: $(1).package
 $(1).package: $(1).prepare
 	# momo を package モードでビルドし直す
-	docker run -it --rm -v `pwd`/..:/root/momo momo/$(1):m$$(WEBRTC_VERSION)-$$(WEBRTC_COMMIT_SHORT) /bin/bash -c 'cd /root/momo && rm -f _build/$(1)/momo && make MOMO_CFLAGS="-O2" PACKAGE_NAME=$(1) BUILD_MODE=package momo'
+	../script/docker_run.sh `pwd` `pwd`/.. $(DOCKER_MOUNT) $(1) momo/$(1):m$$(WEBRTC_VERSION)-$$(WEBRTC_COMMIT_SHORT) package
 
 	rm -rf package/momo-$(MOMO_VERSION)_$(1)
 	rm -f package/momo-$(MOMO_VERSION)_$(1).tar.gz
@@ -116,3 +122,4 @@ mac.prepare:
 .PHONY: mac.clean
 mac.clean:
 	make -C mac clean
+	make -C .. clean
